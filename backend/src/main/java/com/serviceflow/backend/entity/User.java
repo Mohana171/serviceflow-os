@@ -14,6 +14,8 @@ import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.Instant;
+import com.serviceflow.backend.exception.DuplicateResourceException;
+import com.serviceflow.backend.exception.ResourceNotFoundException;
 
 @Entity
 @Table(
