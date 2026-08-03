@@ -1,13 +1,43 @@
 const TENANT_API_URL = "http://localhost:8080/api/tenants";
 
-export async function getTenants() {
-    const response = await fetch(TENANT_API_URL);
-
+async function handleJsonResponse(response, defaultMessage) {
     if (!response.ok) {
-        throw new Error("Failed to fetch tenants");
+        let message = defaultMessage;
+
+        try {
+            const errorData = await response.json();
+
+            if (errorData.message) {
+                message = errorData.message;
+            }
+        } catch {
+            // Use the default message if the response is not JSON.
+        }
+
+        throw new Error(message);
     }
 
     return response.json();
+}
+
+export async function getTenants() {
+    const response = await fetch(TENANT_API_URL);
+
+    return handleJsonResponse(
+        response,
+        "Failed to fetch tenants"
+    );
+}
+
+export async function getTenantById(id) {
+    const response = await fetch(
+        `${TENANT_API_URL}/${id}`
+    );
+
+    return handleJsonResponse(
+        response,
+        "Tenant not found"
+    );
 }
 
 export async function createTenant(tenantData) {
@@ -19,9 +49,51 @@ export async function createTenant(tenantData) {
         body: JSON.stringify(tenantData)
     });
 
-    if (!response.ok) {
-        throw new Error("Failed to create tenant");
-    }
+    return handleJsonResponse(
+        response,
+        "Failed to create tenant"
+    );
+}
 
-    return response.json();
+export async function updateTenant(id, tenantData) {
+    const response = await fetch(
+        `${TENANT_API_URL}/${id}`,
+        {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(tenantData)
+        }
+    );
+
+    return handleJsonResponse(
+        response,
+        "Failed to update tenant"
+    );
+}
+
+export async function deactivateTenant(id) {
+    const response = await fetch(
+        `${TENANT_API_URL}/${id}`,
+        {
+            method: "DELETE"
+        }
+    );
+
+    if (!response.ok) {
+        let message = "Failed to deactivate tenant";
+
+        try {
+            const errorData = await response.json();
+
+            if (errorData.message) {
+                message = errorData.message;
+            }
+        } catch {
+            // DELETE returns no JSON body when successful.
+        }
+
+        throw new Error(message);
+    }
 }
