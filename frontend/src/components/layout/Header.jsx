@@ -1,12 +1,14 @@
+import { Link } from "react-router-dom";
+
 function Header() {
     return (
         <header>
             <h1>ServiceFlow</h1>
 
             <nav>
-                <button>Dashboard</button>
-                <button>Tenants</button>
-                <button>Users</button>
+                <Link to="/tenants">Tenants</Link>
+                {" | "}
+                <Link to="/users">Users</Link>
             </nav>
         </header>
     );
