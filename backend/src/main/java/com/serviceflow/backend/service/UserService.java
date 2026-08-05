@@ -9,7 +9,7 @@ import com.serviceflow.backend.exception.ResourceNotFoundException;
 import com.serviceflow.backend.repository.TenantRepository;
 import com.serviceflow.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
-
+import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,13 +18,15 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
-
+    private final PasswordEncoder passwordEncoder;
     public UserService(
             UserRepository userRepository,
-            TenantRepository tenantRepository
+            TenantRepository tenantRepository,
+            PasswordEncoder passwordEncoder
     ) {
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public UserResponse createUser(UserRequest request) {
@@ -56,7 +58,7 @@ public class UserService {
         /*
          * will replace this with BCrypt hashing later.
          */
-        user.setPasswordHash(request.getPassword());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
 
         user.setRole(request.getRole().trim().toUpperCase());
         user.setActive(true);

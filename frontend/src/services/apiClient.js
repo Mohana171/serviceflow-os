@@ -17,7 +17,6 @@ async function request(path, options = {}) {
         throw new Error(message);
     }
 
-    // 204 No Content (like DELETE) has an empty body — don't parse it
     if (response.status === 204) return null;
     return response.json();
 }
