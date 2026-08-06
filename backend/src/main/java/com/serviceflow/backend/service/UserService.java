@@ -19,6 +19,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
+
     public UserService(
             UserRepository userRepository,
             TenantRepository tenantRepository,
@@ -54,12 +55,7 @@ public class UserService {
         user.setTenant(tenant);
         user.setFullName(request.getFullName().trim());
         user.setEmail(normalizedEmail);
-
-        /*
-         * will replace this with BCrypt hashing later.
-         */
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-
         user.setRole(request.getRole().trim().toUpperCase());
         user.setActive(true);
 
@@ -68,26 +64,55 @@ public class UserService {
         return mapToResponse(savedUser);
     }
 
-    public List<UserResponse> getUsersByTenant(Long tenantId) {
-
+    public List<UserResponse> getUsersVisibleToRequester(
+            Long tenantId,
+            Long requestingUserId,
+            String requestingRole
+    ) {
         if (!tenantRepository.existsById(tenantId)) {
             throw new ResourceNotFoundException("Tenant not found");
         }
 
         return userRepository.findByTenantId(tenantId)
                 .stream()
+                .filter(user -> canView(requestingRole, requestingUserId, user))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
-    public UserResponse getUserById(Long id) {
-
+    public UserResponse getUserById(
+            Long id,
+            Long requestingTenantId,
+            Long requestingUserId,
+            String requestingRole
+    ) {
         User user = userRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("User not found")
                 );
 
+        boolean sameTenant = user.getTenant().getId().equals(requestingTenantId);
+
+        if (!sameTenant || !canView(requestingRole, requestingUserId, user)) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
         return mapToResponse(user);
+    }
+
+    private boolean canView(String requestingRole, Long requestingUserId, User target) {
+
+        if ("ADMIN".equals(requestingRole)) {
+            return true;
+        }
+
+        if ("DISPATCHER".equals(requestingRole)) {
+            return "TECHNICIAN".equals(target.getRole())
+                    || target.getId().equals(requestingUserId);
+        }
+
+        // TECHNICIAN (or any other/unknown role) — only themselves
+        return target.getId().equals(requestingUserId);
     }
 
     private UserResponse mapToResponse(User user) {

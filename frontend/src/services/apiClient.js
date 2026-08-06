@@ -1,8 +1,15 @@
 const BASE_URL = "http://localhost:8080/api";
 
 async function request(path, options = {}) {
+    const token = localStorage.getItem("authToken");
+
+    const headers = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
     const response = await fetch(`${BASE_URL}${path}`, {
-        headers: { "Content-Type": "application/json" },
+        headers,
         ...options,
     });
 
