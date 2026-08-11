@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/layout/Header";
 import TenantsPage from "./pages/TenantsPage";
 import UsersPage from "./pages/UsersPage";
+import CustomersPage from "./pages/CustomersPage";
 import LoginPage from "./pages/LoginPage";
 import { isLoggedIn } from "./services/authService";
 
@@ -20,6 +21,7 @@ function App() {
                     <Route path="/" element={<RequireAuth><TenantsPage /></RequireAuth>} />
                     <Route path="/tenants" element={<RequireAuth><TenantsPage /></RequireAuth>} />
                     <Route path="/users" element={<RequireAuth><UsersPage /></RequireAuth>} />
+                    <Route path="/customers" element={<RequireAuth><CustomersPage /></RequireAuth>} />
                 </Routes>
             </main>
         </BrowserRouter>

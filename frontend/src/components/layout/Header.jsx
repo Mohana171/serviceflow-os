@@ -21,6 +21,8 @@ function Header() {
                     {" | "}
                     <Link to="/users">Users</Link>
                     {" | "}
+                    <Link to="/customers">Customers</Link>
+                    {" | "}
                     <span>{user?.fullName}</span>{" "}
                     <button onClick={handleLogout}>Log out</button>
                 </nav>
