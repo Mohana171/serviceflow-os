@@ -21,7 +21,7 @@ function LoginPage() {
         setError("");
         try {
             await login(Number(tenantId), email, password);
-            navigate("/tenants");
+            navigate("/");
         } catch (err) {
             setError(err.message);
         }

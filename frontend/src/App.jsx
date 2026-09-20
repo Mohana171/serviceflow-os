@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/layout/Header";
-import TenantsPage from "./pages/TenantsPage";
+import WelcomePage from "./pages/WelcomePage";
 import UsersPage from "./pages/UsersPage";
 import CustomersPage from "./pages/CustomersPage";
 import SkillsPage from "./pages/SkillsPage";
@@ -21,8 +21,7 @@ function App() {
             <main>
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
-                    <Route path="/" element={<RequireAuth><TenantsPage /></RequireAuth>} />
-                    <Route path="/tenants" element={<RequireAuth><TenantsPage /></RequireAuth>} />
+                    <Route path="/" element={<RequireAuth><WelcomePage /></RequireAuth>} />
                     <Route path="/users" element={<RequireAuth><UsersPage /></RequireAuth>} />
                     <Route path="/customers" element={<RequireAuth><CustomersPage /></RequireAuth>} />
                     <Route path="/skills" element={<RequireAuth><SkillsPage /></RequireAuth>} />

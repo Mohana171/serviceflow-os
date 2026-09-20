@@ -9,7 +9,6 @@ import Box from "@mui/material/Box";
 import { logout, isLoggedIn, getCurrentUser } from "../../services/authService";
 
 const NAV_LINKS = [
-    { label: "Tenants", path: "/tenants" },
     { label: "Users", path: "/users" },
     { label: "Customers", path: "/customers" },
     { label: "Skills", path: "/skills" },
