@@ -3,6 +3,9 @@ import Header from "./components/layout/Header";
 import TenantsPage from "./pages/TenantsPage";
 import UsersPage from "./pages/UsersPage";
 import CustomersPage from "./pages/CustomersPage";
+import SkillsPage from "./pages/SkillsPage";
+import TerritoriesPage from "./pages/TerritoriesPage";
+import JobsPage from "./pages/JobsPage";
 import LoginPage from "./pages/LoginPage";
 import { isLoggedIn } from "./services/authService";
 
@@ -22,6 +25,9 @@ function App() {
                     <Route path="/tenants" element={<RequireAuth><TenantsPage /></RequireAuth>} />
                     <Route path="/users" element={<RequireAuth><UsersPage /></RequireAuth>} />
                     <Route path="/customers" element={<RequireAuth><CustomersPage /></RequireAuth>} />
+                    <Route path="/skills" element={<RequireAuth><SkillsPage /></RequireAuth>} />
+                    <Route path="/territories" element={<RequireAuth><TerritoriesPage /></RequireAuth>} />
+                    <Route path="/jobs" element={<RequireAuth><JobsPage /></RequireAuth>} />
                 </Routes>
             </main>
         </BrowserRouter>

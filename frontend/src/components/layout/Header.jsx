@@ -1,8 +1,25 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import AppBar from "@mui/material/AppBar";
+import Toolbar from "@mui/material/Toolbar";
+import Typography from "@mui/material/Typography";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import Button from "@mui/material/Button";
+import Box from "@mui/material/Box";
 import { logout, isLoggedIn, getCurrentUser } from "../../services/authService";
+
+const NAV_LINKS = [
+    { label: "Tenants", path: "/tenants" },
+    { label: "Users", path: "/users" },
+    { label: "Customers", path: "/customers" },
+    { label: "Skills", path: "/skills" },
+    { label: "Territories", path: "/territories" },
+    { label: "Jobs", path: "/jobs" },
+];
 
 function Header() {
     const navigate = useNavigate();
+    const location = useLocation();
     const loggedIn = isLoggedIn();
     const user = getCurrentUser();
 
@@ -11,23 +28,46 @@ function Header() {
         navigate("/login");
     }
 
-    return (
-        <header>
-            <h1>ServiceFlow</h1>
+    const currentTab = NAV_LINKS.some((link) => link.path === location.pathname)
+        ? location.pathname
+        : false;
 
-            {loggedIn && (
-                <nav>
-                    <Link to="/tenants">Tenants</Link>
-                    {" | "}
-                    <Link to="/users">Users</Link>
-                    {" | "}
-                    <Link to="/customers">Customers</Link>
-                    {" | "}
-                    <span>{user?.fullName}</span>{" "}
-                    <button onClick={handleLogout}>Log out</button>
-                </nav>
-            )}
-        </header>
+    return (
+        <AppBar position="static">
+            <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Typography variant="h6" component="div">
+                    ServiceFlow
+                </Typography>
+
+                {loggedIn && (
+                    <>
+                        <Tabs
+                            value={currentTab}
+                            textColor="inherit"
+                            indicatorColor="secondary"
+                            sx={{ flexGrow: 1, marginLeft: 4 }}
+                        >
+                            {NAV_LINKS.map((link) => (
+                                <Tab
+                                    key={link.path}
+                                    label={link.label}
+                                    value={link.path}
+                                    component={Link}
+                                    to={link.path}
+                                />
+                            ))}
+                        </Tabs>
+
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                            <Typography variant="body1">{user?.fullName}</Typography>
+                            <Button color="inherit" variant="outlined" onClick={handleLogout}>
+                                Log out
+                            </Button>
+                        </Box>
+                    </>
+                )}
+            </Toolbar>
+        </AppBar>
     );
 }
 

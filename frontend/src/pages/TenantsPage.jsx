@@ -8,6 +8,26 @@ import {
     updateTenant
 } from "../services/tenantService";
 
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
+import Alert from "@mui/material/Alert";
+import CircularProgress from "@mui/material/CircularProgress";
+import Chip from "@mui/material/Chip";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Paper from "@mui/material/Paper";
+
 function TenantsPage() {
     const [tenants, setTenants] = useState([]);
     const [error, setError] = useState("");
@@ -207,182 +227,149 @@ function TenantsPage() {
 
     if (loading) {
         return (
-            <section>
-                <h2>Tenants</h2>
-                <p>Loading tenants...</p>
-            </section>
+            <Box sx={{ padding: 4 }}>
+                <Typography variant="h4" gutterBottom>Tenants</Typography>
+                <Stack direction="row" spacing={2} alignItems="center">
+                    <CircularProgress size={24} />
+                    <Typography>Loading tenants...</Typography>
+                </Stack>
+            </Box>
         );
     }
 
     return (
-        <section>
-            <h2>Tenants</h2>
+        <Box sx={{ padding: 4 }}>
+            <Typography variant="h4" gutterBottom>Tenants</Typography>
 
-            <p>
+            <Typography variant="body1" color="text.secondary" gutterBottom>
                 Manage companies using ServiceFlow.
-            </p>
+            </Typography>
 
-            <div>
-                <button
-                    type="button"
-                    onClick={handleGetAll}
-                >
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ marginY: 3 }}>
+                <Button variant="outlined" onClick={handleGetAll}>
                     Get All Tenants
-                </button>
+                </Button>
 
-                <input
+                <TextField
                     type="number"
                     value={searchId}
-                    onChange={(event) =>
-                        setSearchId(event.target.value)
-                    }
-                    placeholder="Tenant ID"
-                    min="1"
+                    onChange={(event) => setSearchId(event.target.value)}
+                    label="Tenant ID"
+                    size="small"
+                    inputProps={{ min: 1 }}
                 />
 
-                <button
-                    type="button"
-                    onClick={handleGetById}
-                >
+                <Button variant="outlined" onClick={handleGetById}>
                     Get Tenant by ID
-                </button>
+                </Button>
 
-                <button
-                    type="button"
-                    onClick={handleAddClick}
-                >
+                <Box sx={{ flexGrow: 1 }} />
+
+                <Button variant="contained" onClick={handleAddClick}>
                     Add Tenant
-                </button>
-            </div>
+                </Button>
+            </Stack>
 
-            {showForm && (
+            <Dialog open={showForm} onClose={handleCancel} fullWidth maxWidth="xs">
                 <form onSubmit={handleSubmit}>
-                    <h3>
-                        {editingId !== null
-                            ? "Update Tenant"
-                            : "Add Tenant"}
-                    </h3>
+                    <DialogTitle>
+                        {editingId !== null ? "Update Tenant" : "Add Tenant"}
+                    </DialogTitle>
 
-                    <div>
-                        <label htmlFor="name">
-                            Tenant Name
-                        </label>
+                    <DialogContent>
+                        <Stack spacing={2} sx={{ marginTop: 1 }}>
+                            <TextField
+                                label="Tenant Name"
+                                name="name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                disabled={saving}
+                                required
+                                fullWidth
+                            />
 
-                        <input
-                            id="name"
-                            name="name"
-                            type="text"
-                            value={formData.name}
-                            onChange={handleChange}
-                            disabled={saving}
-                            required
-                        />
-                    </div>
+                            <TextField
+                                label="Timezone"
+                                name="timezone"
+                                value={formData.timezone}
+                                onChange={handleChange}
+                                placeholder="America/New_York"
+                                disabled={saving}
+                                required
+                                fullWidth
+                            />
+                        </Stack>
+                    </DialogContent>
 
-                    <div>
-                        <label htmlFor="timezone">
-                            Timezone
-                        </label>
-
-                        <input
-                            id="timezone"
-                            name="timezone"
-                            type="text"
-                            value={formData.timezone}
-                            onChange={handleChange}
-                            placeholder="America/New_York"
-                            disabled={saving}
-                            required
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={saving}
-                    >
-                        {saving
-                            ? "Saving..."
-                            : editingId !== null
-                              ? "Update Tenant"
-                              : "Save Tenant"}
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={handleCancel}
-                        disabled={saving}
-                    >
-                        Cancel
-                    </button>
+                    <DialogActions>
+                        <Button onClick={handleCancel} disabled={saving}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" variant="contained" disabled={saving}>
+                            {saving ? "Saving..." : editingId !== null ? "Update Tenant" : "Save Tenant"}
+                        </Button>
+                    </DialogActions>
                 </form>
-            )}
+            </Dialog>
 
-            {message && (
-                <p>{message}</p>
-            )}
-
-            {error && (
-                <p>{error}</p>
-            )}
+            {message && <Alert severity="success" sx={{ marginBottom: 2 }}>{message}</Alert>}
+            {error && <Alert severity="error" sx={{ marginBottom: 2 }}>{error}</Alert>}
 
             {tenants.length === 0 ? (
-                <p>No active tenants found.</p>
+                <Typography>No active tenants found.</Typography>
             ) : (
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Timezone</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
+                <TableContainer component={Paper}>
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>ID</TableCell>
+                                <TableCell>Name</TableCell>
+                                <TableCell>Timezone</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell>Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
 
-                    <tbody>
-                        {tenants.map((tenant) => (
-                            <tr key={tenant.id}>
-                                <td>{tenant.id}</td>
+                        <TableBody>
+                            {tenants.map((tenant) => (
+                                <TableRow key={tenant.id}>
+                                    <TableCell>{tenant.id}</TableCell>
+                                    <TableCell>{tenant.name}</TableCell>
+                                    <TableCell>{tenant.timezone}</TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label={tenant.active ? "Active" : "Inactive"}
+                                            color={tenant.active ? "success" : "default"}
+                                            size="small"
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Stack direction="row" spacing={1}>
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                onClick={() => handleEditClick(tenant)}
+                                            >
+                                                Edit
+                                            </Button>
 
-                                <td>{tenant.name}</td>
-
-                                <td>{tenant.timezone}</td>
-
-                                <td>
-                                    {tenant.active
-                                        ? "Active"
-                                        : "Inactive"}
-                                </td>
-
-                                <td>
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            handleEditClick(
-                                                tenant
-                                            )
-                                        }
-                                    >
-                                        Edit
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            handleDeactivate(
-                                                tenant
-                                            )
-                                        }
-                                    >
-                                        Deactivate
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                color="error"
+                                                onClick={() => handleDeactivate(tenant)}
+                                            >
+                                                Deactivate
+                                            </Button>
+                                        </Stack>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
             )}
-        </section>
+        </Box>
     );
 }
 
