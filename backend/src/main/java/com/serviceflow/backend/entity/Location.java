@@ -21,6 +21,10 @@ public class Location {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "territory_id", nullable = true)
+    private Territory territory;
+
     @Column(name = "address_line1", nullable = false)
     private String addressLine1;
 
@@ -52,6 +56,9 @@ public class Location {
 
     public Customer getCustomer() { return customer; }
     public void setCustomer(Customer customer) { this.customer = customer; }
+
+    public Territory getTerritory() { return territory; }
+    public void setTerritory(Territory territory) { this.territory = territory; }
 
     public String getAddressLine1() { return addressLine1; }
     public void setAddressLine1(String addressLine1) { this.addressLine1 = addressLine1; }

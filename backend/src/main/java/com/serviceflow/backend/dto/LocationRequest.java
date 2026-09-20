@@ -20,6 +20,8 @@ public class LocationRequest {
     @NotBlank(message = "Zip is required")
     private String zip;
 
+    private Long territoryId;
+
     public Long getCustomerId() { return customerId; }
     public void setCustomerId(Long customerId) { this.customerId = customerId; }
 
@@ -34,4 +36,7 @@ public class LocationRequest {
 
     public String getZip() { return zip; }
     public void setZip(String zip) { this.zip = zip; }
+
+    public Long getTerritoryId() { return territoryId; }
+    public void setTerritoryId(Long territoryId) { this.territoryId = territoryId; }
 }

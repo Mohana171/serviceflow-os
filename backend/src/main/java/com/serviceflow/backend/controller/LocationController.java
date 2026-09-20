@@ -47,4 +47,31 @@ public class LocationController {
 
         return ResponseEntity.ok(responses);
     }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
+    @PutMapping("/{id}")
+    public ResponseEntity<LocationResponse> updateLocation(
+            @PathVariable Long id,
+            @Valid @RequestBody LocationRequest request,
+            Authentication authentication
+    ) {
+        AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
+
+        LocationResponse response = locationService.updateLocation(id, request, currentUser.getTenantId());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deactivateLocation(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
+
+        locationService.deactivateLocation(id, currentUser.getTenantId());
+
+        return ResponseEntity.noContent().build();
+    }
 }

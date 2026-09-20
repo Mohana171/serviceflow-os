@@ -3,6 +3,7 @@ package com.serviceflow.backend.controller;
 import com.serviceflow.backend.dto.JobRequest;
 import com.serviceflow.backend.dto.JobResponse;
 import com.serviceflow.backend.dto.JobStatusUpdateRequest;
+import com.serviceflow.backend.dto.TechnicianSuggestionResponse;
 import com.serviceflow.backend.security.AuthenticatedUser;
 import com.serviceflow.backend.service.JobService;
 import jakarta.validation.Valid;
@@ -63,5 +64,15 @@ public class JobController {
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
         return ResponseEntity.ok(jobService.updateStatus(id, request.getStatus(), currentUser.getTenantId()));
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
+    @GetMapping("/{id}/suggested-technicians")
+    public ResponseEntity<List<TechnicianSuggestionResponse>> getSuggestedTechnicians(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
+        return ResponseEntity.ok(jobService.getSuggestedTechnicians(id, currentUser.getTenantId()));
     }
 }

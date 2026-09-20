@@ -8,4 +8,5 @@ public interface UserRepository extends JpaRepository<User,Long> {
     List<User> findByTenantId(Long tenantId);
     Optional<User> findByTenantIdAndEmail(Long tenantId, String email);
     boolean existsByTenantIdAndEmail(Long tenantId, String email);
+    List<User> findByTenantIdAndRole(Long tenantId, String role);
 }

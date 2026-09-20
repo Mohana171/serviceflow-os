@@ -11,6 +11,8 @@ public class LocationResponse {
     private String city;
     private String state;
     private String zip;
+    private Long territoryId;
+    private String territoryName;
     private boolean active;
     private Instant createdAt;
     private Instant updatedAt;
@@ -35,6 +37,12 @@ public class LocationResponse {
 
     public String getZip() { return zip; }
     public void setZip(String zip) { this.zip = zip; }
+
+    public Long getTerritoryId() { return territoryId; }
+    public void setTerritoryId(Long territoryId) { this.territoryId = territoryId; }
+
+    public String getTerritoryName() { return territoryName; }
+    public void setTerritoryName(String territoryName) { this.territoryName = territoryName; }
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }

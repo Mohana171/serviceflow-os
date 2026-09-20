@@ -2,19 +2,25 @@ package com.serviceflow.backend.service;
 
 import com.serviceflow.backend.dto.JobRequest;
 import com.serviceflow.backend.dto.JobResponse;
+import com.serviceflow.backend.dto.TechnicianSuggestionResponse;
 import com.serviceflow.backend.entity.Customer;
 import com.serviceflow.backend.entity.Job;
 import com.serviceflow.backend.entity.Location;
 import com.serviceflow.backend.entity.Tenant;
 import com.serviceflow.backend.entity.User;
+import com.serviceflow.backend.entity.UserSkill;
+import com.serviceflow.backend.entity.UserTerritory;
 import com.serviceflow.backend.exception.ResourceNotFoundException;
 import com.serviceflow.backend.repository.CustomerRepository;
 import com.serviceflow.backend.repository.JobRepository;
 import com.serviceflow.backend.repository.LocationRepository;
 import com.serviceflow.backend.repository.TenantRepository;
 import com.serviceflow.backend.repository.UserRepository;
+import com.serviceflow.backend.repository.UserSkillRepository;
+import com.serviceflow.backend.repository.UserTerritoryRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,6 +34,8 @@ public class JobService {
     private final LocationRepository locationRepository;
     private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
+    private final UserSkillRepository userSkillRepository;
+    private final UserTerritoryRepository userTerritoryRepository;
 
     // The state machine: which statuses can move to which next statuses.
     private static final Map<String, Set<String>> ALLOWED_TRANSITIONS = Map.of(
@@ -45,13 +53,17 @@ public class JobService {
             CustomerRepository customerRepository,
             LocationRepository locationRepository,
             TenantRepository tenantRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            UserSkillRepository userSkillRepository,
+            UserTerritoryRepository userTerritoryRepository
     ) {
         this.jobRepository = jobRepository;
         this.customerRepository = customerRepository;
         this.locationRepository = locationRepository;
         this.tenantRepository = tenantRepository;
         this.userRepository = userRepository;
+        this.userSkillRepository = userSkillRepository;
+        this.userTerritoryRepository = userTerritoryRepository;
     }
 
     public JobResponse createJob(JobRequest request, Long requestingTenantId, Long requestingUserId) {
@@ -140,6 +152,56 @@ public class JobService {
         Job saved = jobRepository.save(job);
 
         return mapToResponse(saved);
+    }
+
+    public List<TechnicianSuggestionResponse> getSuggestedTechnicians(Long jobId, Long requestingTenantId) {
+
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
+
+        if (!job.getTenant().getId().equals(requestingTenantId)) {
+            throw new ResourceNotFoundException("Job not found");
+        }
+
+        String category = job.getCategory();
+        Long territoryId = (job.getLocation().getTerritory() != null)
+                ? job.getLocation().getTerritory().getId()
+                : null;
+
+        List<User> technicians = userRepository.findByTenantIdAndRole(requestingTenantId, "TECHNICIAN");
+
+        List<TechnicianSuggestionResponse> suggestions = new ArrayList<>();
+
+        for (User tech : technicians) {
+
+            boolean hasMatchingSkill = userSkillRepository.findByUserId(tech.getId())
+                    .stream()
+                    .map(UserSkill::getSkill)
+                    .anyMatch(skill -> skill.getName().equalsIgnoreCase(category));
+
+            boolean hasMatchingTerritory = territoryId != null &&
+                    userTerritoryRepository.findByUserId(tech.getId())
+                            .stream()
+                            .map(UserTerritory::getTerritory)
+                            .anyMatch(territory -> territory.getId().equals(territoryId));
+
+            TechnicianSuggestionResponse suggestion = new TechnicianSuggestionResponse();
+            suggestion.setUserId(tech.getId());
+            suggestion.setFullName(tech.getFullName());
+            suggestion.setEmail(tech.getEmail());
+            suggestion.setHasMatchingSkill(hasMatchingSkill);
+            suggestion.setHasMatchingTerritory(hasMatchingTerritory);
+
+            suggestions.add(suggestion);
+        }
+
+        suggestions.sort((a, b) -> {
+            int scoreA = (a.isHasMatchingSkill() ? 2 : 0) + (a.isHasMatchingTerritory() ? 1 : 0);
+            int scoreB = (b.isHasMatchingSkill() ? 2 : 0) + (b.isHasMatchingTerritory() ? 1 : 0);
+            return scoreB - scoreA;
+        });
+
+        return suggestions;
     }
 
     private JobResponse mapToResponse(Job job) {

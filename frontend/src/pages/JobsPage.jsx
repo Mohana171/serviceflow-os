@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from "react";
-import { getJobs, createJob, updateJobStatus } from "../services/jobService";
+import { getJobs, createJob, updateJobStatus, getSuggestedTechnicians } from "../services/jobService";
 import { getAppointmentsForJob, createAppointment } from "../services/appointmentService";
 import { getNotesForJob, createNote } from "../services/noteService";
 import { getCustomers } from "../services/customerService";
@@ -19,6 +19,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import MenuItem from "@mui/material/MenuItem";
+import ListSubheader from "@mui/material/ListSubheader";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -79,6 +80,7 @@ function JobsPage() {
   const [expandedJobId, setExpandedJobId] = useState(null);
   const [appointmentsByJob, setAppointmentsByJob] = useState({});
   const [notesByJob, setNotesByJob] = useState({});
+  const [suggestionsByJob, setSuggestionsByJob] = useState({});
 
   const [appointmentForm, setAppointmentForm] = useState(EMPTY_APPOINTMENT_FORM);
   const [noteBody, setNoteBody] = useState("");
@@ -141,6 +143,11 @@ function JobsPage() {
     getNotesForJob(jobId).then((data) =>
       setNotesByJob((prev) => ({ ...prev, [jobId]: data }))
     );
+    if (canManageJobs()) {
+      getSuggestedTechnicians(jobId)
+        .then((data) => setSuggestionsByJob((prev) => ({ ...prev, [jobId]: data })))
+        .catch(() => {});
+    }
   }
 
   function toggleDetails(jobId) {
@@ -192,6 +199,52 @@ function JobsPage() {
       })
       .then((data) => setNotesByJob((prev) => ({ ...prev, [jobId]: data })))
       .catch((err) => setError(err.message));
+  }
+
+  function renderTechnicianOptions(jobId) {
+    const suggestions = suggestionsByJob[jobId];
+
+    // Fallback: no suggestions loaded yet (e.g. still fetching, or fetch failed) —
+    // just show the flat technician list, same as before.
+    if (!suggestions) {
+      return technicians.map((t) => (
+        <MenuItem key={t.id} value={t.id}>{t.fullName}</MenuItem>
+      ));
+    }
+
+    const recommended = suggestions.filter((s) => s.hasMatchingSkill || s.hasMatchingTerritory);
+    const others = suggestions.filter((s) => !s.hasMatchingSkill && !s.hasMatchingTerritory);
+
+    const items = [];
+
+    if (recommended.length > 0) {
+      items.push(
+        <ListSubheader key="recommended-header">Recommended</ListSubheader>
+      );
+      recommended.forEach((s) => {
+        const tags = [];
+        if (s.hasMatchingSkill) tags.push("skill match");
+        if (s.hasMatchingTerritory) tags.push("territory match");
+        items.push(
+          <MenuItem key={s.userId} value={s.userId}>
+            {s.fullName} ({tags.join(", ")})
+          </MenuItem>
+        );
+      });
+    }
+
+    if (others.length > 0) {
+      items.push(
+        <ListSubheader key="others-header">Other Technicians</ListSubheader>
+      );
+      others.forEach((s) => {
+        items.push(
+          <MenuItem key={s.userId} value={s.userId}>{s.fullName}</MenuItem>
+        );
+      });
+    }
+
+    return items;
   }
 
   return (
@@ -320,7 +373,7 @@ function JobsPage() {
                                   select size="small" label="Technician" name="technicianId"
                                   value={appointmentForm.technicianId} onChange={handleAppointmentFormChange}
                                 >
-                                  {technicians.map((t) => <MenuItem key={t.id} value={t.id}>{t.fullName}</MenuItem>)}
+                                  {renderTechnicianOptions(j.id)}
                                 </TextField>
                                 <Stack direction="row" spacing={1}>
                                   <TextField

@@ -57,4 +57,18 @@ public class CustomerController {
 
         return ResponseEntity.ok(response);
     }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
+    @PutMapping("/{id}")
+    public ResponseEntity<CustomerResponse> updateCustomer(
+            @PathVariable Long id,
+            @Valid @RequestBody CustomerRequest request,
+            Authentication authentication
+    ) {
+        AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
+
+        CustomerResponse response = customerService.updateCustomer(id, request, currentUser.getTenantId());
+
+        return ResponseEntity.ok(response);
+    }
 }

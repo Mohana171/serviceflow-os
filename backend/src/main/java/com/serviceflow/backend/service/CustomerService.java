@@ -60,6 +60,24 @@ public class CustomerService {
         return mapToResponse(customer);
     }
 
+    public CustomerResponse updateCustomer(Long id, CustomerRequest request, Long requestingTenantId) {
+
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
+
+        if (!customer.getTenant().getId().equals(requestingTenantId)) {
+            throw new ResourceNotFoundException("Customer not found");
+        }
+
+        customer.setName(request.getName().trim());
+        customer.setPrimaryPhone(request.getPrimaryPhone());
+        customer.setEmail(request.getEmail());
+
+        Customer saved = customerRepository.save(customer);
+
+        return mapToResponse(saved);
+    }
+
     private CustomerResponse mapToResponse(Customer customer) {
 
         CustomerResponse response = new CustomerResponse();
