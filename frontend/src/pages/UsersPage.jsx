@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from "react";
-import { getUsers, createUser } from "../services/userService";
+import { getUsers, createUser, updateUser, deactivateUser, reactivateUser } from "../services/userService";
 import { getCurrentUser } from "../services/authService";
 import { getSkills } from "../services/skillService";
 import { getUserSkills, assignSkill } from "../services/userSkillService";
@@ -33,11 +33,23 @@ import ListItemText from "@mui/material/ListItemText";
 import Grid from "@mui/material/Grid";
 import Divider from "@mui/material/Divider";
 
-const ROLES = ["ADMIN", "DISPATCHER", "TECHNICIAN"];
+// Who may create/edit/deactivate which roles (the backend enforces this too).
+// Admin accounts are created only by the platform owner.
+const MANAGEABLE_ROLES = {
+  ADMIN: ["DISPATCHER", "TECHNICIAN"],
+  DISPATCHER: ["TECHNICIAN"],
+};
+
 const EMPTY_USER_FORM = { fullName: "", email: "", password: "", role: "TECHNICIAN" };
 const EMPTY_SCHEDULE_FORM = { day: "", startTime: "", endTime: "", type: "REGULAR" };
 
-const canAssignSkillOrTerritory = () => getCurrentUser()?.role === "ADMIN";
+const canManageUser = (targetRole) =>
+  (MANAGEABLE_ROLES[getCurrentUser()?.role] || []).includes(targetRole);
+
+const canAssignSkillOrTerritory = () => {
+  const role = getCurrentUser()?.role;
+  return role === "ADMIN" || role === "DISPATCHER";
+};
 const canManageSchedule = () => {
   const role = getCurrentUser()?.role;
   return role === "ADMIN" || role === "DISPATCHER";
@@ -45,10 +57,12 @@ const canManageSchedule = () => {
 
 function UsersPage() {
   const currentUser = getCurrentUser();
+  const allowedRoles = MANAGEABLE_ROLES[currentUser?.role] || [];
 
   const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState(EMPTY_USER_FORM);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -67,7 +81,6 @@ function UsersPage() {
 
   function loadUsers() {
     setLoading(true);
-    setError("");
     getUsers()
       .then((data) => setUsers(data))
       .catch((err) => setError(err.message))
@@ -85,24 +98,70 @@ function UsersPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   }
 
+  function openAdd() {
+    setEditingId(null);
+    setFormData({ ...EMPTY_USER_FORM, role: allowedRoles[0] || "TECHNICIAN" });
+    setShowForm(true);
+    setError("");
+    setMessage("");
+  }
+
+  function openEdit(u) {
+    setEditingId(u.id);
+    setFormData({ fullName: u.fullName, email: u.email, password: "", role: u.role });
+    setShowForm(true);
+    setError("");
+    setMessage("");
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setFormData(EMPTY_USER_FORM);
+  }
+
   function handleSubmit(event) {
     event.preventDefault();
     setError("");
     setMessage("");
 
-    const newUser = {
-      tenantId: currentUser.tenantId,
+    const isEdit = editingId !== null;
+
+    const payload = {
       fullName: formData.fullName.trim(),
       email: formData.email.trim(),
-      password: formData.password,
-      role: formData.role,
     };
 
-    createUser(newUser)
+    if (isEdit) {
+      if (formData.password) payload.password = formData.password;
+    } else {
+      payload.password = formData.password;
+      payload.role = formData.role;
+    }
+
+    const request = isEdit ? updateUser(editingId, payload) : createUser(payload);
+
+    request
       .then(() => {
-        setMessage("User created successfully");
-        setFormData(EMPTY_USER_FORM);
-        setShowForm(false);
+        setMessage(isEdit ? "User updated successfully" : "User created successfully");
+        closeForm();
+        loadUsers();
+      })
+      .catch((err) => setError(err.message));
+  }
+
+  function handleToggleActive(u) {
+    if (u.active && !window.confirm(`Deactivate ${u.fullName}? They will no longer be able to log in.`)) {
+      return;
+    }
+    setError("");
+    setMessage("");
+
+    const action = u.active ? deactivateUser(u.id) : reactivateUser(u.id);
+
+    action
+      .then(() => {
+        setMessage(u.active ? "User deactivated" : "User reactivated");
         loadUsers();
       })
       .catch((err) => setError(err.message));
@@ -191,27 +250,49 @@ function UsersPage() {
 
       <Stack direction="row" sx={{ marginY: 2 }}>
         <Box sx={{ flexGrow: 1 }} />
-        <Button variant="contained" onClick={() => setShowForm(true)}>
-          Add User
-        </Button>
+        {allowedRoles.length > 0 && (
+          <Button variant="contained" onClick={openAdd}>
+            Add User
+          </Button>
+        )}
       </Stack>
 
-      <Dialog open={showForm} onClose={() => setShowForm(false)} fullWidth maxWidth="xs">
+      <Dialog open={showForm} onClose={closeForm} fullWidth maxWidth="xs">
         <form onSubmit={handleSubmit}>
-          <DialogTitle>Add User</DialogTitle>
+          <DialogTitle>{editingId !== null ? "Edit User" : "Add User"}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ marginTop: 1 }}>
               <TextField label="Full name" name="fullName" value={formData.fullName} onChange={handleChange} required fullWidth />
               <TextField label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required fullWidth />
-              <TextField label="Password" name="password" type="password" value={formData.password} onChange={handleChange} required fullWidth />
-              <TextField select label="Role" name="role" value={formData.role} onChange={handleChange} fullWidth>
-                {ROLES.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+              <TextField
+                label={editingId !== null ? "New password (leave blank to keep current)" : "Password"}
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                required={editingId === null}
+                fullWidth
+              />
+              <TextField
+                select
+                label="Role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                disabled={editingId !== null}
+                fullWidth
+              >
+                {(editingId !== null ? [formData.role] : allowedRoles).map((r) => (
+                  <MenuItem key={r} value={r}>{r}</MenuItem>
+                ))}
               </TextField>
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button type="submit" variant="contained">Save User</Button>
+            <Button onClick={closeForm}>Cancel</Button>
+            <Button type="submit" variant="contained">
+              {editingId !== null ? "Save Changes" : "Save User"}
+            </Button>
           </DialogActions>
         </form>
       </Dialog>
@@ -226,6 +307,7 @@ function UsersPage() {
               <TableCell>Role</TableCell>
               <TableCell>Active</TableCell>
               <TableCell>Details</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -250,10 +332,29 @@ function UsersPage() {
                       <Typography variant="body2" color="text.disabled">N/A</Typography>
                     )}
                   </TableCell>
+                  <TableCell>
+                    {canManageUser(u.role) ? (
+                      <Stack direction="row" spacing={1}>
+                        <Button size="small" variant="outlined" onClick={() => openEdit(u)}>
+                          Edit
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color={u.active ? "error" : "success"}
+                          onClick={() => handleToggleActive(u)}
+                        >
+                          {u.active ? "Deactivate" : "Reactivate"}
+                        </Button>
+                      </Stack>
+                    ) : (
+                      <Typography variant="body2" color="text.disabled">-</Typography>
+                    )}
+                  </TableCell>
                 </TableRow>
 
                 <TableRow>
-                  <TableCell colSpan={6} sx={{ paddingY: 0, borderBottom: expandedUserId === u.id ? undefined : "none" }}>
+                  <TableCell colSpan={7} sx={{ paddingY: 0, borderBottom: expandedUserId === u.id ? undefined : "none" }}>
                     <Collapse in={expandedUserId === u.id} timeout="auto" unmountOnExit>
                       <Box sx={{ paddingY: 3 }}>
                         <Grid container spacing={3}>
@@ -381,7 +482,7 @@ function UsersPage() {
               </Fragment>
             ))}
             {users.length === 0 && !loading && (
-              <TableRow><TableCell colSpan={6}>No users yet.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7}>No users yet.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

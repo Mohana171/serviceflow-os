@@ -2,6 +2,7 @@ package com.serviceflow.backend.controller;
 
 import com.serviceflow.backend.dto.UserRequest;
 import com.serviceflow.backend.dto.UserResponse;
+import com.serviceflow.backend.dto.UserUpdateRequest;
 import com.serviceflow.backend.security.AuthenticatedUser;
 import com.serviceflow.backend.service.UserService;
 import jakarta.validation.Valid;
@@ -23,16 +24,47 @@ public class UserController {
         this.userService = userService;
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
     @PostMapping
     public ResponseEntity<UserResponse> createUser(
-            @Valid @RequestBody UserRequest request
+            @Valid @RequestBody UserRequest request,
+            Authentication authentication
     ) {
-        UserResponse response = userService.createUser(request);
+        AuthenticatedUser me = (AuthenticatedUser) authentication.getPrincipal();
+        UserResponse response = userService.createUserAsStaff(request, me.getTenantId(), me.getRole());
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
+    @PutMapping("/{id}")
+    public ResponseEntity<UserResponse> updateUser(
+            @PathVariable Long id,
+            @Valid @RequestBody UserUpdateRequest request,
+            Authentication authentication
+    ) {
+        AuthenticatedUser me = (AuthenticatedUser) authentication.getPrincipal();
+        return ResponseEntity.ok(userService.updateUser(id, request, me.getTenantId(), me.getRole()));
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<UserResponse> deactivateUser(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        AuthenticatedUser me = (AuthenticatedUser) authentication.getPrincipal();
+        return ResponseEntity.ok(userService.setUserActive(id, false, me.getTenantId(), me.getRole()));
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
+    @PatchMapping("/{id}/reactivate")
+    public ResponseEntity<UserResponse> reactivateUser(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        AuthenticatedUser me = (AuthenticatedUser) authentication.getPrincipal();
+        return ResponseEntity.ok(userService.setUserActive(id, true, me.getTenantId(), me.getRole()));
     }
 
     @GetMapping("/{id}")

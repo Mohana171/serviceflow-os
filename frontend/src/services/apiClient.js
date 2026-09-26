@@ -1,7 +1,8 @@
 const BASE_URL = "http://localhost:8080/api";
 
 async function request(path, options = {}) {
-    const token = localStorage.getItem("authToken");
+    const isPlatformPath = path.startsWith("/tenants") || path.startsWith("/platform");
+    const token = localStorage.getItem(isPlatformPath ? "platformToken" : "authToken");
 
     const headers = {
         "Content-Type": "application/json",

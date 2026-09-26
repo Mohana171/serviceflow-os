@@ -27,8 +27,9 @@ public class SecurityConfig {
             .cors(cors -> {})
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/auth/login").permitAll()
-                    .anyRequest().authenticated())
+                .requestMatchers("/api/auth/login", "/api/platform/login").permitAll()
+                .requestMatchers("/api/tenants/**").hasRole("PLATFORM_ADMIN")
+                .anyRequest().hasAnyRole("ADMIN", "DISPATCHER", "TECHNICIAN"))
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

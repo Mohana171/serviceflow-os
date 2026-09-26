@@ -10,7 +10,10 @@ import com.serviceflow.backend.entity.Tenant;
 import com.serviceflow.backend.entity.User;
 import com.serviceflow.backend.entity.UserSkill;
 import com.serviceflow.backend.entity.UserTerritory;
+import com.serviceflow.backend.exception.DuplicateResourceException;
+import com.serviceflow.backend.exception.ForbiddenActionException;
 import com.serviceflow.backend.exception.ResourceNotFoundException;
+import com.serviceflow.backend.repository.AppointmentRepository;
 import com.serviceflow.backend.repository.CustomerRepository;
 import com.serviceflow.backend.repository.JobRepository;
 import com.serviceflow.backend.repository.LocationRepository;
@@ -36,6 +39,7 @@ public class JobService {
     private final UserRepository userRepository;
     private final UserSkillRepository userSkillRepository;
     private final UserTerritoryRepository userTerritoryRepository;
+    private final AppointmentRepository appointmentRepository;
 
     // The state machine: which statuses can move to which next statuses.
     private static final Map<String, Set<String>> ALLOWED_TRANSITIONS = Map.of(
@@ -48,6 +52,9 @@ public class JobService {
             "CANCELLED", Set.of()
     );
 
+    // The only statuses a technician may set (on their own jobs)
+    private static final Set<String> TECHNICIAN_ALLOWED_STATUSES = Set.of("IN_PROGRESS", "COMPLETED");
+
     public JobService(
             JobRepository jobRepository,
             CustomerRepository customerRepository,
@@ -55,7 +62,8 @@ public class JobService {
             TenantRepository tenantRepository,
             UserRepository userRepository,
             UserSkillRepository userSkillRepository,
-            UserTerritoryRepository userTerritoryRepository
+            UserTerritoryRepository userTerritoryRepository,
+            AppointmentRepository appointmentRepository
     ) {
         this.jobRepository = jobRepository;
         this.customerRepository = customerRepository;
@@ -64,6 +72,7 @@ public class JobService {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
         this.userTerritoryRepository = userTerritoryRepository;
+        this.appointmentRepository = appointmentRepository;
     }
 
     public JobResponse createJob(JobRequest request, Long requestingTenantId, Long requestingUserId) {
@@ -108,14 +117,19 @@ public class JobService {
         return mapToResponse(saved);
     }
 
-    public List<JobResponse> getJobsForTenant(Long tenantId) {
-        return jobRepository.findByTenantId(tenantId)
-                .stream()
+    public List<JobResponse> getJobsForTenant(Long tenantId, Long requestingUserId, String requestingRole) {
+
+        List<Job> jobs = "TECHNICIAN".equals(requestingRole)
+                ? jobRepository.findJobsAssignedToTechnician(requestingUserId, tenantId)
+                : jobRepository.findByTenantId(tenantId);
+
+        return jobs.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
-    public JobResponse getJobById(Long id, Long requestingTenantId) {
+    public JobResponse getJobById(Long id, Long requestingTenantId,
+                                  Long requestingUserId, String requestingRole) {
 
         Job job = jobRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
@@ -124,10 +138,16 @@ public class JobService {
             throw new ResourceNotFoundException("Job not found");
         }
 
+        if ("TECHNICIAN".equals(requestingRole)
+                && !appointmentRepository.existsByJobIdAndTechnicianId(id, requestingUserId)) {
+            throw new ResourceNotFoundException("Job not found");
+        }
+
         return mapToResponse(job);
     }
 
-    public JobResponse updateStatus(Long id, String newStatus, Long requestingTenantId) {
+    public JobResponse updateStatus(Long id, String newStatus, Long requestingTenantId,
+                                    Long requestingUserId, String requestingRole) {
 
         Job job = jobRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
@@ -139,12 +159,21 @@ public class JobService {
         String normalizedNewStatus = newStatus.trim().toUpperCase();
         String currentStatus = job.getStatus();
 
+        if ("TECHNICIAN".equals(requestingRole)) {
+            if (!appointmentRepository.existsByJobIdAndTechnicianId(id, requestingUserId)) {
+                throw new ResourceNotFoundException("Job not found");
+            }
+            if (!TECHNICIAN_ALLOWED_STATUSES.contains(normalizedNewStatus)) {
+                throw new ForbiddenActionException(
+                        "Technicians can only mark a job IN_PROGRESS or COMPLETED");
+            }
+        }
+
         Set<String> allowedNext = ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of());
 
         if (!allowedNext.contains(normalizedNewStatus)) {
-            throw new com.serviceflow.backend.exception.DuplicateResourceException(
-                "Cannot move job from " + currentStatus + " to " + normalizedNewStatus
-        
+            throw new DuplicateResourceException(
+                    "Cannot move job from " + currentStatus + " to " + normalizedNewStatus
             );
         }
 
@@ -173,6 +202,10 @@ public class JobService {
         List<TechnicianSuggestionResponse> suggestions = new ArrayList<>();
 
         for (User tech : technicians) {
+
+            if (!tech.isActive()) {
+                continue; // deactivated technicians are never suggested
+            }
 
             boolean hasMatchingSkill = userSkillRepository.findByUserId(tech.getId())
                     .stream()

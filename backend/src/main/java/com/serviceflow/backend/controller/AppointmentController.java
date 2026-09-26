@@ -40,7 +40,8 @@ public class AppointmentController {
             Authentication authentication
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
-        return ResponseEntity.ok(appointmentService.getAppointmentsForJob(jobId, currentUser.getTenantId()));
+        return ResponseEntity.ok(appointmentService.getAppointmentsForJob(
+                jobId, currentUser.getTenantId(), currentUser.getUserId(), currentUser.getRole()));
     }
 
     @GetMapping("/technician/{technicianId}")
@@ -49,6 +50,7 @@ public class AppointmentController {
             Authentication authentication
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
-        return ResponseEntity.ok(appointmentService.getAppointmentsForTechnician(technicianId, currentUser.getTenantId()));
+        return ResponseEntity.ok(appointmentService.getAppointmentsForTechnician(
+                technicianId, currentUser.getTenantId(), currentUser.getUserId(), currentUser.getRole()));
     }
 }

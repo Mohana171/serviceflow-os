@@ -1,5 +1,5 @@
 package com.serviceflow.backend.service;
-
+import com.serviceflow.backend.exception.ForbiddenActionException;
 import com.serviceflow.backend.dto.ScheduleRequest;
 import com.serviceflow.backend.dto.ScheduleResponse;
 import com.serviceflow.backend.entity.Schedule;
@@ -31,13 +31,17 @@ public class ScheduleService {
         this.tenantRepository = tenantRepository;
     }
 
-    public ScheduleResponse createSchedule(ScheduleRequest request, Long requestingTenantId) {
+    public ScheduleResponse createSchedule(ScheduleRequest request, Long requestingTenantId,String requestingRole) {
 
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (!user.getTenant().getId().equals(requestingTenantId)) {
             throw new ResourceNotFoundException("User not found");
+        }
+
+        if ("DISPATCHER".equals(requestingRole) && !"TECHNICIAN".equals(user.getRole())) {
+            throw new ForbiddenActionException("Dispatchers can only schedule technicians");
         }
 
         Tenant tenant = tenantRepository.findById(requestingTenantId)
@@ -56,12 +60,17 @@ public class ScheduleService {
         return mapToResponse(saved);
     }
 
-    public List<ScheduleResponse> getScheduleForUser(Long userId, Long requestingTenantId) {
+    public List<ScheduleResponse> getScheduleForUser(Long userId, Long requestingTenantId,
+                                                    Long requestingUserId, String requestingRole) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (!user.getTenant().getId().equals(requestingTenantId)) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
+        if ("TECHNICIAN".equals(requestingRole) && !userId.equals(requestingUserId)) {
             throw new ResourceNotFoundException("User not found");
         }
 

@@ -7,6 +7,7 @@ import com.serviceflow.backend.entity.Note;
 import com.serviceflow.backend.entity.Tenant;
 import com.serviceflow.backend.entity.User;
 import com.serviceflow.backend.exception.ResourceNotFoundException;
+import com.serviceflow.backend.repository.AppointmentRepository;
 import com.serviceflow.backend.repository.JobRepository;
 import com.serviceflow.backend.repository.NoteRepository;
 import com.serviceflow.backend.repository.TenantRepository;
@@ -23,27 +24,46 @@ public class NoteService {
     private final JobRepository jobRepository;
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
+    private final AppointmentRepository appointmentRepository;
 
     public NoteService(
             NoteRepository noteRepository,
             JobRepository jobRepository,
             UserRepository userRepository,
-            TenantRepository tenantRepository
+            TenantRepository tenantRepository,
+            AppointmentRepository appointmentRepository
     ) {
         this.noteRepository = noteRepository;
         this.jobRepository = jobRepository;
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
+        this.appointmentRepository = appointmentRepository;
     }
 
-    public NoteResponse createNote(NoteRequest request, Long requestingTenantId, Long requestingUserId) {
+    // Loads the job, checking the tenant, and (for technicians) that they are assigned to it
+    private Job loadJobForRequester(Long jobId, Long requestingTenantId,
+                                    Long requestingUserId, String requestingRole) {
 
-        Job job = jobRepository.findById(request.getJobId())
+        Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
 
         if (!job.getTenant().getId().equals(requestingTenantId)) {
             throw new ResourceNotFoundException("Job not found");
         }
+
+        if ("TECHNICIAN".equals(requestingRole)
+                && !appointmentRepository.existsByJobIdAndTechnicianId(jobId, requestingUserId)) {
+            throw new ResourceNotFoundException("Job not found");
+        }
+
+        return job;
+    }
+
+    public NoteResponse createNote(NoteRequest request, Long requestingTenantId,
+                                   Long requestingUserId, String requestingRole) {
+
+        Job job = loadJobForRequester(request.getJobId(), requestingTenantId,
+                requestingUserId, requestingRole);
 
         Tenant tenant = tenantRepository.findById(requestingTenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found"));
@@ -62,14 +82,10 @@ public class NoteService {
         return mapToResponse(saved);
     }
 
-    public List<NoteResponse> getNotesForJob(Long jobId, Long requestingTenantId) {
+    public List<NoteResponse> getNotesForJob(Long jobId, Long requestingTenantId,
+                                             Long requestingUserId, String requestingRole) {
 
-        Job job = jobRepository.findById(jobId)
-                .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
-
-        if (!job.getTenant().getId().equals(requestingTenantId)) {
-            throw new ResourceNotFoundException("Job not found");
-        }
+        loadJobForRequester(jobId, requestingTenantId, requestingUserId, requestingRole);
 
         return noteRepository.findByJobIdOrderByCreatedAtAsc(jobId)
                 .stream()

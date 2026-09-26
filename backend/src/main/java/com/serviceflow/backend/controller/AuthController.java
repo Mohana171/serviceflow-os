@@ -3,7 +3,6 @@ package com.serviceflow.backend.controller;
 import com.serviceflow.backend.dto.LoginRequest;
 import com.serviceflow.backend.dto.LoginResponse;
 import com.serviceflow.backend.entity.User;
-import com.serviceflow.backend.exception.ResourceNotFoundException;
 import com.serviceflow.backend.repository.UserRepository;
 import com.serviceflow.backend.security.JwtService;
 import jakarta.validation.Valid;
@@ -29,11 +28,17 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
 
-        User user = userRepository.findByTenantIdAndEmail(request.getTenantId(), request.getEmail().trim().toLowerCase())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = userRepository
+                .findByTenantIdAndEmail(request.getTenantId(), request.getEmail().trim().toLowerCase())
+                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new BadCredentialsException("Invalid credentials");
+        }
+
+        if (!user.isActive() || !user.getTenant().getActive()) {
+            throw new BadCredentialsException(
+                    "This account has been deactivated. Contact your administrator.");
         }
 
         String token = jwtService.generateToken(user.getId(), user.getTenant().getId(), user.getRole());

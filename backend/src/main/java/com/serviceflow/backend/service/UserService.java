@@ -12,6 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.serviceflow.backend.dto.UserUpdateRequest;
+import com.serviceflow.backend.exception.ForbiddenActionException;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 public class UserService {
@@ -30,20 +34,17 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public UserResponse createUser(UserRequest request) {
+    public UserResponse createUser(UserRequest request, Long requestingTenantId) {
 
-        Tenant tenant = tenantRepository.findById(request.getTenantId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Tenant not found")
-                );
+        Tenant tenant = tenantRepository.findById(requestingTenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("Tenant not found"));
 
         String normalizedEmail = request.getEmail()
                 .trim()
                 .toLowerCase();
 
         if (userRepository.existsByTenantIdAndEmail(
-                request.getTenantId(),
-                normalizedEmail
+            requestingTenantId, normalizedEmail
         )) {
             throw new DuplicateResourceException(
                     "User email already exists for this tenant"
@@ -62,6 +63,64 @@ public class UserService {
         User savedUser = userRepository.save(user);
 
         return mapToResponse(savedUser);
+    }
+    // Who may manage which roles. Owner (platform) creates ADMINs separately.
+    private static final Map<String, Set<String>> MANAGEABLE_ROLES = Map.of(
+        "ADMIN", Set.of("DISPATCHER", "TECHNICIAN"),
+        "DISPATCHER", Set.of("TECHNICIAN")
+    );
+
+    private void requireCanManage(String requesterRole, String targetRole) {
+    if (!MANAGEABLE_ROLES.getOrDefault(requesterRole, Set.of()).contains(targetRole)) {
+        throw new ForbiddenActionException(
+                "You are not allowed to manage " + targetRole + " accounts");
+    }
+    }
+
+    private User findManageableUser(Long id, Long requestingTenantId, String requesterRole) {
+    User user = userRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+    if (!user.getTenant().getId().equals(requestingTenantId)) {
+        throw new ResourceNotFoundException("User not found");
+    }
+
+    requireCanManage(requesterRole, user.getRole());
+    return user;
+    }
+
+    public UserResponse createUserAsStaff(UserRequest request, Long requestingTenantId, String requesterRole) {
+    requireCanManage(requesterRole, request.getRole().trim().toUpperCase());
+    return createUser(request, requestingTenantId);
+    }
+
+    public UserResponse updateUser(Long id, UserUpdateRequest request,
+                            Long requestingTenantId, String requesterRole) {
+
+    User user = findManageableUser(id, requestingTenantId, requesterRole);
+
+    String normalizedEmail = request.getEmail().trim().toLowerCase();
+
+    if (userRepository.existsByTenantIdAndEmailAndIdNot(requestingTenantId, normalizedEmail, id)) {
+        throw new DuplicateResourceException("User email already exists for this tenant");
+    }
+
+    user.setFullName(request.getFullName().trim());
+    user.setEmail(normalizedEmail);
+
+    if (request.getPassword() != null && !request.getPassword().isBlank()) {
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+    }
+
+    return mapToResponse(userRepository.save(user));
+    }
+
+    public UserResponse setUserActive(Long id, boolean active,
+                                Long requestingTenantId, String requesterRole) {
+
+    User user = findManageableUser(id, requestingTenantId, requesterRole);
+    user.setActive(active);
+    return mapToResponse(userRepository.save(user));
     }
 
     public List<UserResponse> getUsersVisibleToRequester(

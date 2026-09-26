@@ -2,10 +2,9 @@ package com.serviceflow.backend.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-public class UserRequest {
+public class UserUpdateRequest {
 
     @NotBlank(message = "Full name is required")
     private String fullName;
@@ -14,14 +13,9 @@ public class UserRequest {
     @Email(message = "Email must be valid")
     private String email;
 
-    @NotBlank(message = "Password is required")
+    // Optional: leave out to keep the current password
     @Size(min = 8, message = "Password must contain at least 8 characters")
     private String password;
-
-    @NotBlank(message = "Role is required")
-    @Pattern(regexp = "(?i)ADMIN|DISPATCHER|TECHNICIAN",
-             message = "Role must be ADMIN, DISPATCHER or TECHNICIAN")
-    private String role;
 
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
@@ -31,7 +25,4 @@ public class UserRequest {
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
-
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
 }

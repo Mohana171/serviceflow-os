@@ -5,6 +5,7 @@ import com.serviceflow.backend.entity.Territory;
 import com.serviceflow.backend.entity.User;
 import com.serviceflow.backend.entity.UserTerritory;
 import com.serviceflow.backend.exception.DuplicateResourceException;
+import com.serviceflow.backend.exception.ForbiddenActionException;
 import com.serviceflow.backend.exception.ResourceNotFoundException;
 import com.serviceflow.backend.repository.TerritoryRepository;
 import com.serviceflow.backend.repository.UserRepository;
@@ -16,6 +17,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class UserTerritoryService {
+
+    private static final String ROLE_DISPATCHER = "DISPATCHER";
+    private static final String ROLE_TECHNICIAN = "TECHNICIAN";
 
     private final UserTerritoryRepository userTerritoryRepository;
     private final UserRepository userRepository;
@@ -31,7 +35,7 @@ public class UserTerritoryService {
         this.territoryRepository = territoryRepository;
     }
 
-    public UserTerritoryResponse assignTerritoryToUser(Long userId, Long territoryId, Long requestingTenantId) {
+    public UserTerritoryResponse assignTerritoryToUser(Long userId, Long territoryId, Long requestingTenantId, String requestingRole) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -39,6 +43,8 @@ public class UserTerritoryService {
         if (!user.getTenant().getId().equals(requestingTenantId)) {
             throw new ResourceNotFoundException("User not found");
         }
+
+        requireCanManageTerritoriesFor(user, requestingRole);
 
         boolean territoryBelongsToTenant = territoryRepository.existsByIdAndTenantId(territoryId, requestingTenantId);
         if (!territoryBelongsToTenant) {
@@ -58,7 +64,7 @@ public class UserTerritoryService {
         return mapToResponse(saved);
     }
 
-    public List<UserTerritoryResponse> getTerritoriesForUser(Long userId, Long requestingTenantId) {
+    public List<UserTerritoryResponse> getTerritoriesForUser(Long userId, Long requestingTenantId, String requestingRole) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -67,10 +73,19 @@ public class UserTerritoryService {
             throw new ResourceNotFoundException("User not found");
         }
 
+        requireCanManageTerritoriesFor(user, requestingRole);
+
         return userTerritoryRepository.findByUserId(userId)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    private void requireCanManageTerritoriesFor(User targetUser, String requestingRole) {
+        if (ROLE_DISPATCHER.equalsIgnoreCase(requestingRole)
+                && !ROLE_TECHNICIAN.equalsIgnoreCase(targetUser.getRole())) {
+            throw new ForbiddenActionException("Dispatchers can only manage territories for technicians");
+        }
     }
 
     private UserTerritoryResponse mapToResponse(UserTerritory userTerritory) {

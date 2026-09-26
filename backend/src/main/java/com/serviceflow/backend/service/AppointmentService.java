@@ -12,6 +12,7 @@ import com.serviceflow.backend.repository.JobRepository;
 import com.serviceflow.backend.repository.TenantRepository;
 import com.serviceflow.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import com.serviceflow.backend.exception.DuplicateResourceException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -53,7 +54,11 @@ public class AppointmentService {
         }
 
         if (!"TECHNICIAN".equals(technician.getRole())) {
-            throw new IllegalStateException("Assigned user must have the TECHNICIAN role");
+            throw new DuplicateResourceException("Assigned user must have the TECHNICIAN role");
+        }
+
+        if (!technician.isActive()) {
+            throw new DuplicateResourceException("This technician is deactivated");
         }
 
         Tenant tenant = tenantRepository.findById(requestingTenantId)
@@ -72,12 +77,18 @@ public class AppointmentService {
         return mapToResponse(saved);
     }
 
-    public List<AppointmentResponse> getAppointmentsForJob(Long jobId, Long requestingTenantId) {
+    public List<AppointmentResponse> getAppointmentsForJob(Long jobId, Long requestingTenantId,
+                                                        Long requestingUserId, String requestingRole) {
 
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
 
         if (!job.getTenant().getId().equals(requestingTenantId)) {
+            throw new ResourceNotFoundException("Job not found");
+        }
+
+        if ("TECHNICIAN".equals(requestingRole)
+                && !appointmentRepository.existsByJobIdAndTechnicianId(jobId, requestingUserId)) {
             throw new ResourceNotFoundException("Job not found");
         }
 
@@ -87,12 +98,17 @@ public class AppointmentService {
                 .collect(Collectors.toList());
     }
 
-    public List<AppointmentResponse> getAppointmentsForTechnician(Long technicianId, Long requestingTenantId) {
+    public List<AppointmentResponse> getAppointmentsForTechnician(Long technicianId, Long requestingTenantId,
+                                                                Long requestingUserId, String requestingRole) {
 
         User technician = userRepository.findById(technicianId)
                 .orElseThrow(() -> new ResourceNotFoundException("Technician not found"));
 
         if (!technician.getTenant().getId().equals(requestingTenantId)) {
+            throw new ResourceNotFoundException("Technician not found");
+        }
+
+        if ("TECHNICIAN".equals(requestingRole) && !technicianId.equals(requestingUserId)) {
             throw new ResourceNotFoundException("Technician not found");
         }
 

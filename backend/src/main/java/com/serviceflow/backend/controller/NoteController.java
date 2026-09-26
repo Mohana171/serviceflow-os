@@ -29,7 +29,7 @@ public class NoteController {
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
         NoteResponse response = noteService.createNote(
-                request, currentUser.getTenantId(), currentUser.getUserId()
+                request, currentUser.getTenantId(), currentUser.getUserId(), currentUser.getRole()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -40,6 +40,7 @@ public class NoteController {
             Authentication authentication
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
-        return ResponseEntity.ok(noteService.getNotesForJob(jobId, currentUser.getTenantId()));
+        return ResponseEntity.ok(noteService.getNotesForJob(
+                jobId, currentUser.getTenantId(), currentUser.getUserId(), currentUser.getRole()));
     }
 }

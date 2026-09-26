@@ -31,7 +31,8 @@ public class ScheduleController {
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
 
-        ScheduleResponse response = scheduleService.createSchedule(request, currentUser.getTenantId());
+         ScheduleResponse response = scheduleService.createSchedule(
+            request, currentUser.getTenantId(), currentUser.getRole());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -43,8 +44,8 @@ public class ScheduleController {
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
 
-        List<ScheduleResponse> responses = scheduleService.getScheduleForUser(userId, currentUser.getTenantId());
-
+        List<ScheduleResponse> responses = scheduleService.getScheduleForUser(
+                userId, currentUser.getTenantId(), currentUser.getUserId(), currentUser.getRole());
         return ResponseEntity.ok(responses);
     }
 }

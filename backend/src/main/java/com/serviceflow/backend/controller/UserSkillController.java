@@ -23,7 +23,7 @@ public class UserSkillController {
         this.userSkillService = userSkillService;
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
     @PostMapping
     public ResponseEntity<UserSkillResponse> assignSkill(
             @Valid @RequestBody UserSkillRequest request,
@@ -32,7 +32,8 @@ public class UserSkillController {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
 
         UserSkillResponse response = userSkillService.assignSkillToUser(
-                request.getUserId(), request.getSkillId(), currentUser.getTenantId()
+                request.getUserId(), request.getSkillId(),
+                currentUser.getTenantId(), currentUser.getRole()
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -45,7 +46,9 @@ public class UserSkillController {
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
 
-        List<UserSkillResponse> responses = userSkillService.getSkillsForUser(userId, currentUser.getTenantId());
+        List<UserSkillResponse> responses = userSkillService.getSkillsForUser(
+                userId, currentUser.getTenantId(), currentUser.getRole()
+        );
 
         return ResponseEntity.ok(responses);
     }

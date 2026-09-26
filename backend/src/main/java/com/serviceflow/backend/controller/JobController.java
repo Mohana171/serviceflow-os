@@ -32,18 +32,17 @@ public class JobController {
             Authentication authentication
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
-
         JobResponse response = jobService.createJob(
                 request, currentUser.getTenantId(), currentUser.getUserId()
         );
-
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
     public ResponseEntity<List<JobResponse>> getJobs(Authentication authentication) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
-        return ResponseEntity.ok(jobService.getJobsForTenant(currentUser.getTenantId()));
+        return ResponseEntity.ok(jobService.getJobsForTenant(
+                currentUser.getTenantId(), currentUser.getUserId(), currentUser.getRole()));
     }
 
     @GetMapping("/{id}")
@@ -52,10 +51,11 @@ public class JobController {
             Authentication authentication
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
-        return ResponseEntity.ok(jobService.getJobById(id, currentUser.getTenantId()));
+        return ResponseEntity.ok(jobService.getJobById(
+                id, currentUser.getTenantId(), currentUser.getUserId(), currentUser.getRole()));
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER', 'TECHNICIAN')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<JobResponse> updateStatus(
             @PathVariable Long id,
@@ -63,7 +63,9 @@ public class JobController {
             Authentication authentication
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
-        return ResponseEntity.ok(jobService.updateStatus(id, request.getStatus(), currentUser.getTenantId()));
+        return ResponseEntity.ok(jobService.updateStatus(
+                id, request.getStatus(),
+                currentUser.getTenantId(), currentUser.getUserId(), currentUser.getRole()));
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")

@@ -23,7 +23,7 @@ public class UserTerritoryController {
         this.userTerritoryService = userTerritoryService;
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
     @PostMapping
     public ResponseEntity<UserTerritoryResponse> assignTerritory(
             @Valid @RequestBody UserTerritoryRequest request,
@@ -32,7 +32,7 @@ public class UserTerritoryController {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
 
         UserTerritoryResponse response = userTerritoryService.assignTerritoryToUser(
-                request.getUserId(), request.getTerritoryId(), currentUser.getTenantId()
+            request.getUserId(), request.getTerritoryId(), currentUser.getTenantId(), currentUser.getRole()
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -45,7 +45,9 @@ public class UserTerritoryController {
     ) {
         AuthenticatedUser currentUser = (AuthenticatedUser) authentication.getPrincipal();
 
-        List<UserTerritoryResponse> responses = userTerritoryService.getTerritoriesForUser(userId, currentUser.getTenantId());
+        List<UserTerritoryResponse> responses = userTerritoryService.getTerritoriesForUser(
+                userId, currentUser.getTenantId(), currentUser.getRole()
+        );
 
         return ResponseEntity.ok(responses);
     }

@@ -1,5 +1,6 @@
 package com.serviceflow.backend.service;
 
+import com.serviceflow.backend.exception.ForbiddenActionException;
 import com.serviceflow.backend.dto.UserSkillResponse;
 import com.serviceflow.backend.entity.Skill;
 import com.serviceflow.backend.entity.User;
@@ -17,6 +18,9 @@ import java.util.stream.Collectors;
 @Service
 public class UserSkillService {
 
+    private static final String ROLE_DISPATCHER = "DISPATCHER";
+    private static final String ROLE_TECHNICIAN = "TECHNICIAN";
+
     private final UserSkillRepository userSkillRepository;
     private final UserRepository userRepository;
     private final SkillRepository skillRepository;
@@ -31,7 +35,7 @@ public class UserSkillService {
         this.skillRepository = skillRepository;
     }
 
-    public UserSkillResponse assignSkillToUser(Long userId, Long skillId, Long requestingTenantId) {
+    public UserSkillResponse assignSkillToUser(Long userId, Long skillId, Long requestingTenantId, String requestingRole) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -39,6 +43,8 @@ public class UserSkillService {
         if (!user.getTenant().getId().equals(requestingTenantId)) {
             throw new ResourceNotFoundException("User not found");
         }
+
+        requireCanManageSkillsFor(user, requestingRole);
 
         boolean skillBelongsToTenant = skillRepository.existsByIdAndTenantId(skillId, requestingTenantId);
         if (!skillBelongsToTenant) {
@@ -58,7 +64,7 @@ public class UserSkillService {
         return mapToResponse(saved);
     }
 
-    public List<UserSkillResponse> getSkillsForUser(Long userId, Long requestingTenantId) {
+    public List<UserSkillResponse> getSkillsForUser(Long userId, Long requestingTenantId, String requestingRole) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -67,10 +73,19 @@ public class UserSkillService {
             throw new ResourceNotFoundException("User not found");
         }
 
+        requireCanManageSkillsFor(user, requestingRole);
+
         return userSkillRepository.findByUserId(userId)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    private void requireCanManageSkillsFor(User targetUser, String requestingRole) {
+        if (ROLE_DISPATCHER.equalsIgnoreCase(requestingRole)
+                && !ROLE_TECHNICIAN.equalsIgnoreCase(targetUser.getRole())) {
+            throw new ForbiddenActionException("Dispatchers can only manage skills for technicians");
+        }
     }
 
     private UserSkillResponse mapToResponse(UserSkill userSkill) {
